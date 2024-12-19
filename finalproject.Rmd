@@ -1,0 +1,181 @@
+---
+title: "Final Project"
+author: "Ansley"
+date: "2023-04-28"
+output: html_document
+---
+
+<font size="4"> April, 2023 </font> 
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggplot2)
+library(bestglm)
+library(plotly)
+library(visreg)
+library(kableExtra)
+library(gridExtra)
+library(glmnet)
+library(Matrix)
+library(knitr)
+SLEEP = read.csv("Sleep_Efficiency.csv")
+```
+<font size="15"> Introduction </font> 
+
+Sleep is an essential aspect of human life, yet it remains a mystery to many of us. We spend nearly one-third of our lives sleeping, yet we often overlook the importance of the quality of our sleep. Having quality sleep has been linked to improved qualities of life including mental and physical well-being. Getting a good night's rest helps lower your risk for serious health problems, including diabetes and heart disease as well as reduce stress and improve your overall mood. However, many people miss out on these health benefits due to lack of knowledge on how to improve sleep quality.
+
+According to the National Sleep Foundation, adults should aim for about seven to nine hours of sleep per night, while teenagers and children require even more. However, it's not just the quantity of sleep that matters, the quality of our sleep is just as or even more crucial for our health and productivity. Within the data, we found many factors that can affect the quality of our sleep, including several lifestyle, behavioural and demographic elements. Lifestyle factors include **exercise frequency** and **smoking status**, behavioural include **alcohol** and **caffeine consumption** and demographic indicators are **age** and **gender** variables. 
+
+Through our analysis, we will further research two questions which are :
+
+1. What are the best predictors for sleep quality?
+
+2. Which lifestyle factor (exercise frequency, caffeine consumption, alcohol consumption, and smoking status) improves sleep quality and how significant is their impact on sleep quality?
+
+With the increasing demands of a modern lifestyle, many people struggle to get the recommended amount of sleep each night. Between work, family, and social obligations, there can be a lot of demands on our time that can make it difficult to prioritize sleep. Thus, we really need to be mindful of all the aspects of our lifestyle to ensure we can maintain overall health. Although it is really difficult to get the recommended seven to nine hours of high quality sleep every night, it is crucial that we take measures to prevent it from happening. People should also be more aware of what impacts their sleep quality and how to effectively improve it. Through our analysis of the sleep survey data we hope to help people improve their sleep quality by understanding what lifestyle factors are negatively or positively contributing to their sleep.
+
+
+<font size="15"> Data </font> 
+
+The data that we used was published on Kaggle.com by an account named Equilibrium. It was collected by a research team from the University of Oxfordshire as part of a study. According to the team, they recruited participants from the local community and used a combination of self-reported surveys, actigraphy, and polysomnography, which is a sleep monitoring technique, to collect the data over a period of several months. The dataset has 452 observations in total, with each observation being one test subject’s sleep pattern. We created the following figure to depict the information about age, and gender of all the test subjects:
+
+```{r, echo=FALSE}
+ggplot(SLEEP, aes(x=Age, fill = Gender)) +
+  geom_bar() +
+  scale_x_binned()
+```
+
+The dataset originally contained 15 columns. We dropped the **ID** column first since it is just an identifier for each test subject and does not really provide information for the research. Besides, we deleted the variables **Bedtime** and **Wakeup time** as we already had the **Sleep duration**, which is the difference between the previous two variables.To answer our first question, we also created a **Sleep Index** variable representing sleep quality to analyze how it is related to other variables. To add this new variable, we first converted the column of **deep sleep percentage** to a decimal by dividing by 100, and we named the transformed variable **deep sleep proportion**.  Then, the index was built by combining the two variables **deep sleep proportion** and **sleep efficiency** with weights of 70% and 30% separately. We chose these two variables because they mostly represent the overall sleep quality of test subjects, and improving it is the main objective of our project. Finally, we used all the remaining variables to answer our two questions. The following table shows 14 relevant variables in our dataset:
+
+
+``` {r,echo=F} 
+head(SLEEP) %>% 
+  kbl("html", escape=F) %>%
+  kable_material(c("hover"), fixed_thead = T) %>%
+  scroll_box(width="100%")
+```
+
+<font size="5"> Creating a New Variable to Measure Efficacy of Sleep
+ </font> 
+
+
+$$ \text{Sleep.index} = 0.7 \times \text{deep.sleep.percentage} + 0.3 \times \text{sleep.efficiency} $$
+
+```{r, echo=FALSE}
+SLEEP$Sleep.Index = .7 * SLEEP$Deep.sleep.percentage + .3 * SLEEP$Sleep.efficiency
+
+plot3 <- ggplot(SLEEP, aes(x = Age, y = Sleep.Index, color = Gender)) +
+  geom_point() +
+  theme_minimal() +
+  labs(title = "Sleep Index vs Age", x = "Age", y = "Sleep.Index")
+plotly::ggplotly(plot3)
+```
+
+
+
+<font size="15"> Results </font> 
+
+### **First Question**
+
+For question one, we tried to build a Lasso Regression model where the acronym  "LASSO" stands for least absolute shrinkage and selection operator to find the most important predictors for **Sleep Index**. We chose this model because the lasso procedure encourages simple models with fewer parameters, and this regression is well-suited when there is multicollinearity showed in the model during model selection. Both of these two features fit our dataset very well as some of our variables such as **Deep.sleep.ercentage** and **Light.sleep.percentage** are highly correlated. The following formula shows the mathematical equation for Lasso Regression:
+
+<font size="5"> Lasso </font> 
+$$ \min_{\beta_0,\beta_1}\left\{\sum_{i=1}^n(y_i-\beta_0-\beta_1 x_i)^2+\lambda\sum_{j=1}^p|\beta_j|\right\} $$
+
+Where $y_i$ is the response variable, $x_i$ is the predictor variable, $\beta_0$ and $\beta_1$ arr the intercept and slope coefficients, $\lambda$ is the regularization parameter, and $p$ is the total number of predictor variables. Lasso regression is a regularization technique used to prevent overfitting and select relevant features for the model. It does this by adding an L1 penalty term that is equal to the absolute value of the magnitude to the objective function, which shrinks some of the coefficients to zero, effectively removing them from the model. In this way, Lasso Regression results in sparse models with fewer coefficients. 
+ 
+In this paper, we used Lasso Regression to analyze what are the most important predictors of the "Sleep Index" variable in the dataset. The table below shows the coefficients for the best Lasso regression model fitted to the data. Each row represents a different variable, and the corresponding "Estimate" column displays the estimated coefficient value for that variable in the model.
+  
+This model has identified several factors associated with Sleep Index, which is used to check sleep efficiency and deep sleep percentage. Based on the coefficients, Age and Exercise frequency have positive relationships with Sleep Index. Those positive coefficients indicate that as these two variables increase, the Sleep Index also increases. On the other hand, Sleep.duration, REM.sleep.percentage, Awakenings, Caffeine consumption, Alcohol consumption, and Smoking status all have negative relationships with Sleep Index, meaning that an increase in these variables is associated with a decrease in Sleep Index. Among these factors, Smoking status has the strongest negative impact on Sleep Index, with a coefficient of -4.0738, while Exercise frequency has the strongest positive impact, with a coefficient of 0.8337. These findings suggest that in order to improve Sleep Index, individuals should focus on reducing smoking, caffeine, and alcohol consumption, as well as decreasing the number of awakenings during sleep. Moreover, engaging in regular exercise appears to have a positive influence on Sleep Index.
+
+```{r, echo = FALSE, results='asis'}
+SLEEP_smoke <-SLEEP %>% mutate(Smoking.status = ifelse(Smoking.status == "Yes", 1, 0))
+SLEEP_lasso <- na.omit(SLEEP_smoke)
+y <- as.numeric(SLEEP_lasso$Sleep.Index)
+
+# create predictor matrix x with only numerical variables
+x <- SLEEP_lasso[, sapply(SLEEP_lasso, is.numeric)]
+x <- x[, !(names(x) %in% c("Deep.Sleep.Proportion", "Sleep.Index",'Light.sleep.percentage','Sleep.efficiency','Deep.sleep.percentage'))]
+x <- as.matrix(x)
+
+# perform k-fold cross-validation to find optimal lambda value
+cv_model <- cv.glmnet(x, y, alpha = 1)
+
+# find optimal lambda value that minimizes test MSE
+best_lambda <- cv_model$lambda.min
+plot(cv_model)
+
+# find coefficients of best model
+best_model <- glmnet(x, y, alpha = 1, lambda = best_lambda)
+coef_df <- as.data.frame(as.matrix(coef(best_model)))
+colnames(coef_df)[1] <- "Estimate"
+coef_df <- rownames_to_column(coef_df, var = "Variable")
+kable(coef_df, align = "c") %>%
+  kable_styling(bootstrap_options = "striped", full_width = 0.3)
+```
+
+
+
+
+### **Second Question**
+The secondary question we aimed to investigate was how significant were each of the lifestyle factors, including exercise frequency, caffeine consumption, alcohol consumption, and smoking status were on the Sleep Index as well as what each of their correlations were according to the data. To address this question, we conducted a multiple linear regression analysis using the provided dataset. Our multiple linear regression model included Sleep Index as the dependent variable and exercise frequency, caffeine consumption, alcohol consumption, and smoking status as independent variables. The model's R-squared value was 0.2453, indicating that approximately 24.53% of the variation in Sleep Index could be explained by the included lifestyle factors. Although this value suggests that our model captures some of the underlying relationships, a large proportion of the variance in Sleep Index remains unexplained, which might be attributed to other unmeasured factors.
+
+<font size="5"> P Values </font> 
+
+The p-values for each predictor variable help us determine if there is a statistically significant relationship between the predictor variable and Sleep Index, while accounting for the effects of other predictor variables. In our analysis, we found the following relationships: Exercise frequency: The p-value was less than 0.001, indicating a statistically significant relationship with Sleep Index. The positive coefficient (0.01994) suggests that an increase in exercise frequency is associated with an increase in Sleep Index, holding other predictor variables constant. Caffeine consumption: The p-value was 0.753, indicating no statistically significant relationship with Sleep Index when accounting for the other predictor variables. Alcohol consumption: The p-value was less than 0.001, indicating a statistically significant relationship with Sleep Index. The negative coefficient (-0.03407) suggests that an increase in alcohol consumption is associated with a decrease in Sleep Index, holding other predictor variables constant. Smoking status: The p-value was less than 0.001, indicating a statistically significant relationship with Sleep Index. The negative coefficient (-0.06317) suggests that being a smoker is associated with a lower Sleep Index compared to non-smokers, holding other predictor variables constant.
+
+```{r, echo = FALSE, results='asis'}
+
+SLEEP_CLEAN <- SLEEP %>%
+  drop_na()
+model <- lm(Sleep.Index ~ Exercise.frequency + Caffeine.consumption + Alcohol.consumption + Smoking.status, data = SLEEP_CLEAN)
+summary(model)
+residuals <- model$residuals
+fitted_values <- model$fitted.values
+
+ggplot(data = NULL, aes(x = fitted_values, y = residuals)) +
+  geom_point() +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+  theme_minimal() +
+  labs(
+    title = "Residual Plot",
+    x = "Fitted Values",
+    y = "Residuals"
+  )
+```
+
+<font size="5"> Partial regression plots: </font> 
+
+To visualize the relationships between each predictor variable and Sleep Index, while adjusting for the effects of other predictor variables in the model, we created a series of partial regression plots. These plots display the relationship between Sleep Index and each independent variable after accounting for the influence of the remaining independent variables.In our partial regression plots, we observed the following: Exercise frequency: The plot showed a positive relationship with Sleep Index, consistent with our analysis of the model’s coefficients. As exercise frequency increases, the Sleep Index tends to increase. Caffeine consumption: The plot displayed no clear relationship with Sleep Index, supporting our finding of no significant relationship between these variables. Alcohol consumption: The plot showed a negative relationship with Sleep Index, which is in line with our analysis of the model’s coefficients. As alcohol consumption increases, Sleep Index tends to decrease. Smoking status: The plot displayed a clear distinction between smokers and non-smokers, with smokers having a lower Sleep Index on average than non-smokers, consistent with our analysis of the model’s coefficients. In conclusion, our multiple linear regression analysis suggests that exercise frequency, alcohol consumption, and smoking status have significant relationships with Sleep Index, while caffeine consumption does not. The partial regression plots provide a visual representation of these relationships. However, it’s important to note that our model only explains 24.53% of the variation in Sleep Index, and other unmeasured factors may also influence Sleep Index.
+
+```{r, echo = FALSE, results='asis'}
+visreg(model, "Exercise.frequency", plot.type = "partial", gg = TRUE) +
+  theme_minimal() +
+  labs(title = "Partial Regression Plot: Exercise Frequency vs Sleep Duration")
+
+visreg(model, "Caffeine.consumption", plot.type = "partial", gg = TRUE) +
+  theme_minimal() +
+  labs(title = "Partial Regression Plot: Caffeine Consumption vs Sleep Duration")
+
+visreg(model, "Alcohol.consumption", plot.type = "partial", gg = TRUE) +
+  theme_minimal() +
+  labs(title = "Partial Regression Plot: Alcohol Consumption vs Sleep Index")
+
+visreg(model, "Smoking.status", plot.type = "partial", gg = TRUE) +
+  theme_minimal() +
+  labs(title = "Partial Regression Plot: Smoking Status vs Sleep Index")
+```
+
+
+<font size="15"> Conclusion </font> 
+
+In this study, we aimed to analyze the factors influencing sleep quality and determine the significant lifestyle factors that contribute to sleep quality. To accomplish this, we performed two separate analyses: Lasso regression and multiple linear regression. To achieve the goal of question 1, the Lasso regression was employed to identify the most important predictors of the “Sleep Index” variable in the dataset, while in question 2 the multiple linear regression focused on the impact of specific lifestyle factors on sleep quality.
+
+Based on the Lasso regression analysis, the variable that has greatest positive relationship with Sleep Index is Exercise frequency, with a coefficient of 0.8337. On the other hand, Smoking status had the strongest negative impact on Sleep Index, with a coefficient of -4.0738. Moreover, all other predictors except Age show negative relationships with Sleep Index. Sleep is crucial for both our physical and mental health, and it plays an important role in maintaining our overall well-being. Therefore, understanding what factors may cause poor sleep is important for all individuals. However, smoking, caffeine, and alcohol consumption are still very common among people who are struggling with sleep problems. We hope our results can make individuals realize what factors may have caused their sleep problems, and help them improve their sleep quality. To improve our model in the future, we may gather more observations for longer periods to increase the accuracy our predictions. Also, we could include more observations from different areas since people from different countries may have quite different sleep pattern due to factors including education system, climate and daylight, diet, work schedules, etc. After considering various factors from different aspects, our model would be more comprehensive and applicable to more people.
+
+The multiple linear regression analysis was conducted to specifically examine the impact of lifestyle factors, such as exercise frequency, caffeine consumption, alcohol consumption, and smoking status, on the Sleep Index. Our analysis showed that exercise frequency, alcohol consumption, and smoking status had significant relationships with Sleep Index, while caffeine consumption did not. The positive relationship between exercise frequency and Sleep Index supports the idea that engaging in regular physical activity can improve sleep quality. Conversely, the negative relationships between alcohol consumption and smoking status with Sleep Index suggest that reducing alcohol intake and quitting smoking can lead to better sleep quality. The absence of a significant relationship between caffeine consumption and Sleep Index in our analysis could be attributed to the complex nature of caffeine’s effects on sleep, which may vary based on factors such as individual sensitivity and timing of consumption.
+
+In conclusion, our study highlights the importance of understanding the factors influencing sleep quality in order to implement effective strategies for improving sleep. Based on our findings, promoting regular exercise, reducing alcohol consumption, and encouraging smoking cessation are potential ways to enhance sleep quality. While caffeine consumption did not show a significant relationship with Sleep Index in our analysis, it is still advisable to monitor caffeine intake and timing to ensure optimal sleep quality. Overall, our study provides valuable insights into the factors affecting sleep quality and offers potential avenues for interventions aimed at promoting better sleep and overall well-being.
